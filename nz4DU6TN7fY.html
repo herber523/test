@@ -1,29 +1,43 @@
 
     <html>
-      <h1>Ray：簡化分布式運算，加速 AI 工作負載</h1>
+      <h1>使用 Ray 和 GKE 進行高效的 AI 推理</h1>
       <iframe width="560" height="315" src="https://www.youtube.com/embed/nz4DU6TN7fY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-      <h2>Ray：簡化分布式運算，加速 AI 工作負載</h2>
-<p>Ray 是一個熱門的開源框架，專為分布式運算而設計，它讓開發者能夠輕鬆地將程式碼分散執行於多台機器上，從而提升效率和可擴展性。</p>
-<p><strong>Ray 與 Google Kubernetes Engine (GKEs) 的完美結合</strong></p>
-<p>Ray 與 Google 的管理式 Kubernetes 服務 GKE 無縫整合，可以充分利用 GKE 的優勢，例如可擴展性、自動擴縮和管理式基礎架構。</p>
-<p><strong>Ray 的應用場景</strong></p>
-<p>Ray 特別適用於機器學習任務，例如模型訓練和推理，因為這些任務通常需要處理大量數據和模型，需要強大的計算能力。</p>
-<p><strong>Ray 的核心功能</strong></p>
+      <h2>使用 Ray 和 GKE 進行高效的 AI 推理</h2>
+<p>這篇文章將深入探討如何利用 Ray 和 Google Kubernetes Engine (GKE) 來構建高效的 AI 推理系統。</p>
+<p><strong>Ray：分布式 AI 推理框架</strong></p>
+<p>Ray 是一個開源的分布式 AI 推理框架，專為高性能計算和大規模模型訓練設計。它提供以下優勢：</p>
 <ul>
-<li><strong>Actor:</strong>  允許分布式通信和狀態管理，方便處理複雜的任務。</li>
-<li><strong>Task:</strong>  允許並行執行程式碼，加速處理速度。</li>
-<li><strong>動態工作負載調度:</strong>  根據工作負載需求，動態優化資源分配，提高資源利用率。</li>
-<li><strong>Checkpoint:</strong>  在訓練過程中保存模型進度，即使發生故障也能夠恢復訓練狀態。</li>
+<li><strong>簡化分布式程式設計:</strong> Ray 提供了簡潔的 API，讓開發人員可以輕鬆地將程式碼分布到多個機器上執行。</li>
+<li><strong>高效的資源利用:</strong> Ray 可以自動管理資源分配，並根據需求動態調整資源使用，最大化效能。</li>
+<li><strong>靈活的擴展性:</strong> Ray 可以輕鬆地擴展到更大的集群，以滿足不斷增長的 AI 模型需求。</li>
 </ul>
-<p><strong>Ray 在 GKE 上的優勢</strong></p>
+<p><strong>GKE：雲端容器平台</strong></p>
+<p>Google Kubernetes Engine (GKE) 是 Google 提供的雲端容器平台，提供以下優勢：</p>
 <ul>
-<li><strong>成本效益:</strong> Ray 幫助優化資源利用率，只需使用必要的計算資源，從而降低成本。</li>
-<li><strong>可擴展性:</strong>  可以通過在 GKE 集群中添加更多節點來輕鬆擴展工作負載。</li>
-<li><strong>簡化管理:</strong> GKE 負責基礎架構管理，開發者可以專注於程式碼開發。</li>
+<li><strong>自動化部署和管理:</strong> GKE 自動化容器部署、管理和擴展，簡化運營工作負擔。</li>
+<li><strong>高可用性和容錯性:</strong> GKE 提供高可用性和容錯性，確保應用程式持續運作。</li>
+<li><strong>彈性擴展:</strong> GKE 可以根據需求彈性擴展，滿足不同規模的應用程式需求。</li>
 </ul>
-<p><strong>實例</strong></p>
-<p>演講者提到，一位客戶使用 Ray 在 GKE 上訓練模型，訓練時間比原先減少了 29 倍。</p>
-<p><strong>總結</strong></p>
-<p>使用合適的工具，例如 Ray，可以有效地加速 AI 工作負載的執行。同時，利用管理式服務，例如 GKE，可以簡化運營工作，讓開發者能夠專注於核心業務。</p>
+<p><strong>Ray 和 GKE 的完美結合</strong></p>
+<p>將 Ray 和 GKE 結合在一起，可以構建高效、可擴展的 AI 推理系統。</p>
+<ul>
+<li><strong>部署 Ray 應用程式到 GKE:</strong> 使用 GKE 部署 Ray 應用程式，並利用 GKE 的自動化管理功能簡化運營工作。</li>
+<li><strong>利用 GKE 的資源優化:</strong> GKE 提供豐富的資源優化功能，例如節點池、自動擴展等，可以幫助 Ray 應用程式更有效地利用資源。</li>
+<li><strong>實現高可用性和容錯性:</strong> GKE 的高可用性和容錯性可以確保 AI 推理系統的穩定運作。</li>
+</ul>
+<p><strong>實例：使用 Ray 和 GKE 進行圖像分類</strong></p>
+<p>以下是一個使用 Ray 和 GKE 進行圖像分類的簡單實例：</p>
+<ol>
+<li><strong>訓練模型:</strong> 使用 Ray 訓練一個圖像分類模型，並將模型儲存到 GKE 中的 PersistentVolume。</li>
+<li><strong>部署模型:</strong> 將 Ray 模型部署到 GKE 中的 Pod，並使用 Ray Serve 框架提供 API 接口。</li>
+<li><strong>執行推理:</strong> 使用客戶端應用程式發送圖像請求到 Ray Serve API，並接收模型的預測結果。</li>
+</ol>
+<p><strong>結論</strong></p>
+<p>Ray 和 GKE 的完美結合可以為開發人員提供一個高效、可擴展的平台，以構建和部署 AI 推理系統。</p>
+<p><strong>額外資源</strong></p>
+<ul>
+<li><strong>Ray 官方網站:</strong> https://ray.io/</li>
+<li><strong>GKE 官方網站:</strong> https://cloud.google.com/kubernetes-engine/docs/</li>
+</ul>
     </html>
     

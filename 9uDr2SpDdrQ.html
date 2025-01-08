@@ -1,21 +1,39 @@
 
     <html>
-      <h1>使用 NF Test 確保生產級 Kubernetes Operator 的可靠性</h1>
+      <h1>使用 NF test 驗證 Kubernetes 運算員可靠性</h1>
       <iframe width="560" height="315" src="https://www.youtube.com/embed/9uDr2SpDdrQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-      <h2>使用 NF Test 確保生產級 Kubernetes Operator 的可靠性</h2>
-<p>這篇演講「Ensuring Reliability of Production Ready Kubernetes Operators Using NF Test」探討了測試 Kubernetes Operator 的挑戰，並介紹 NF Test 作為解決方案。</p>
-<p><strong>主要重點:</strong></p>
+      <h2>使用 NF test 驗證 Kubernetes 運算員可靠性</h2>
+<p><strong>摘要</strong></p>
+<p>本文探討了 Kubernetes 運算員的測試方法，特別介紹了 NF test 的優勢和應用。作者將介紹傳統測試方法的局限性，並深入說明如何使用 NF test 驗證運算員的可靠性，包括測試範例和最佳實踐。</p>
+<p><strong>前言</strong></p>
+<p>Kubernetes 運算員是管理和配置複雜應用程序的關鍵組件。隨著運算員的複雜性增加，確保其可靠性變得至關重要。傳統的 E2E 測試雖然可以驗證運算員在真實環境中的行為，但執行時間長，且難以捕捉所有可能的錯誤情況。NF test 是一種更輕量級的測試方法，可以有效驗證運算員的核心邏輯，並提供更快的測試週期。</p>
+<p><strong>技術介紹</strong></p>
+<p><strong>1. 運算員的基礎</strong></p>
+<p>Kubernetes 運算員是一種使用 declarative API 管理和配置 Kubernetes 資源的工具。它們通過一個控制迴路不斷監控資源狀態，並根據定義的期望狀態進行調整。</p>
+<p><strong>2. 傳統測試方法的局限性</strong></p>
 <ul>
-<li><strong>傳統測試的局限性:</strong> 端對端 (E2E) 測試對於在真實環境中驗證 Operator 至關重要，但耗時較長。單元測試缺乏完整 Kubernetes 環境的上下文。</li>
-<li><strong>NF Test 的優勢:</strong> NF Test 提供一種比 E2E 測試更快的替代方案，同時提供比單元測試更逼真的 Kubernetes 環境。它使用輕量級 Kubernetes API 伺服器和狀態管理，而無需完整的集群。</li>
-<li><strong>NF Test 的實施:</strong> 演講演示了如何為 Operator 撰寫 NF Test，重點介紹了最佳實務，例如：<ul>
-<li>使用命名空間進行隔離。</li>
-<li>使用帶有超時值的異步測試。</li>
-<li>利用模擬器進行雲端 API 相互作用。</li>
+<li><strong>E2E 測試:</strong> 雖然 E2E 測試可以驗證運算員在真實環境中的行為，但執行時間長，且需要完整的 Kubernetes 集群環境，這在開發和測試過程中效率低下。</li>
+<li><strong>單元測試:</strong> 單元測試可以驗證運算員中單個功能的正確性，但難以驗證運算員與其他組件的交互行為。</li>
 </ul>
-</li>
-<li><strong>實際案例:</strong> NF Test 被 Cluster API 等項目廣泛使用，並受到 Azure 和 AWS 等雲端提供商的支持，證明了其在生產環境中的有效性。</li>
+<p><strong>3. NF test 的優勢</strong></p>
+<ul>
+<li><strong>快速執行:</strong> NF test 使用輕量級的 Kubernetes API 伺服器和 state 管理器，執行速度比 E2E 測試快得多。</li>
+<li><strong>精準測試:</strong> NF test 可以針對特定功能進行測試，並驗證運算員的核心邏輯，例如資源創建、更新和刪除。</li>
+<li><strong>易於集成:</strong> NF test 可以與現有的測試框架和工具無縫集成。</li>
 </ul>
-<p><strong>總體而言，演講強調了 NF Test 對於確保 Kubernetes Operator 的可靠性和健壯性的益處。</strong></p>
+<p><strong>4. 使用 NF test 驗證運算員的示例</strong></p>
+<ul>
+<li><strong>驗證資源創建:</strong> 使用 NF test 驗證運算員是否能夠正確創建 Kubernetes 資源，例如 Pod、服務和部署。</li>
+<li><strong>驗證資源更新:</strong> 使用 NF test 驗證運算員是否能夠正確更新 Kubernetes 資源的狀態，例如更新 Pod 的镜像版本。</li>
+<li><strong>驗證資源刪除:</strong> 使用 NF test 驗證運算員是否能夠正確刪除 Kubernetes 資源，並清理相關資源。</li>
+</ul>
+<p><strong>5. NF test 的最佳實踐</strong></p>
+<ul>
+<li><strong>使用獨立的命名空間:</strong> 為每個測試用例創建獨立的命名空間，避免資源衝突。</li>
+<li><strong>使用 mock 數據:</strong> 使用 mock 數據模擬外部服務的響應，例如雲端 API，以簡化測試環境。</li>
+<li><strong>使用斷言驗證結果:</strong> 使用斷言驗證測試結果，確保運算員的行為符合預期。</li>
+</ul>
+<p><strong>結論</strong></p>
+<p>NF test 是一種高效且可靠的 Kubernetes 運算員測試方法，可以幫助開發人員驗證運算員的可靠性，並提高軟體品質。通過使用 NF test，開發人員可以更快地發現和修復錯誤，並確保運算員在生產環境中正常運行。</p>
     </html>
     
