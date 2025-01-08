@@ -1,0 +1,36 @@
+
+    <html>
+      <h1>打造可擴展流量平台：從挑戰到解決方案</h1>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/pyKow6Ox11Y" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      <h2>打造可擴展流量平台：從挑戰到解決方案</h2>
+<p><strong>摘要:</strong></p>
+<p>本文探討了在分布式系統中管理流量限制配置的挑戰，特別是在包含 API Gateway 和服務網狀等多個服務和組件的環境中。文章重點介紹了「恐懼釋放模式」 (Scary Release Pattern) 等解決方案，以簡化配置管理、降低部署風險並提升開發者效率。</p>
+<p><strong>前言:</strong></p>
+<p>隨著系統規模的擴展，流量管理變得越來越重要。在分布式系統中，需要有效地控制不同服務和組件的流量，以確保系統穩定性和性能。流量限制配置的管理也變得更加複雜，需要考慮多個平台和服務的協調。</p>
+<p><strong>技術介紹:</strong></p>
+<p>本文將重點介紹以下技術和概念：</p>
+<ul>
+<li><strong>流量平台 (Traffic Platform):</strong>  專門用於管理和控制流量的平台，通常包含 API Gateway、服務網狀、流量控制策略等組成部分。</li>
+<li><strong>API Gateway:</strong>  負責接收外部請求並路由到適當的後端服務的入口點。</li>
+<li><strong>服務網狀 (Service Mesh):</strong>  一種架構，用於管理微服務之間的通信和流量控制。</li>
+<li><strong>中央化配置管理:</strong>  將流量限制配置集中管理，避免在不同平台上重複配置。</li>
+<li><strong>「恐懼釋放模式」 (Scary Release Pattern):</strong>  一種分階段部署的策略，先將新配置部署到單一服務上進行驗證，再逐步擴展到其他服務。</li>
+<li><strong>Open Source 工具:</strong>  例如 Argo 和 Numa，可用于自動化配置管理和流量控制。</li>
+<li><strong>Prometheus:</strong>  一個用于監控和告警的開源工具，可用于監控流量平台的性能和健康狀況。</li>
+</ul>
+<p><strong>內容:</strong></p>
+<p>在构建可擴展流量平台的过程中，面临着以下挑战：</p>
+<ul>
+<li><strong>资源密集型配置更新:</strong>  对于数百个 API Gateway 实例，从服务注册表读取配置会导致性能问题和高资源消耗。</li>
+<li><strong>错误配置风险:</strong>  同时将错误配置部署到所有部分会带来重大风险。</li>
+</ul>
+<p>为了解决这些问题，本文介绍了以下解决方案：</p>
+<ul>
+<li><strong>「恐懼釋放模式」:</strong>  通过逐步部署新配置，先在单个 API Gateway 实例上进行验证，再通知其他实例。这可以减轻资源消耗并降低部署错误配置的风险。</li>
+<li><strong>将配置迁移到 S3:</strong>  将配置从服务注册表迁移到 S3，可以进一步减少对注册表的负载。</li>
+</ul>
+<p>此外，本文还探讨了 Kubernetes、Open Source 工具 (如 Argo 和 Numa) 和 OPAs 和 Prometheus 等工具的集成。</p>
+<p><strong>結論:</strong></p>
+<p>构建可擴展和可靠的流量平台需要 careful 的規劃和設計。通過採用「恐懼釋放模式」等策略，以及利用 Open Source 工具和最佳实践，可以有效地管理流量限制配置，提升開發者效率，并确保系統的穩定性和安全性。</p>
+    </html>
+    

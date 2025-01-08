@@ -1,0 +1,36 @@
+
+    <html>
+      <h1>Linkerd 與 Service Mesh 的抉擇：實務經驗分享</h1>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/8QPbI25lw0g" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      <h2>Linkerd 與 Service Mesh 的抉擇：實務經驗分享</h2>
+<p>這篇文章將分享我們團隊在選擇服務網狀架構時，如何評估 Linkerd 與 Service Mesh 的優缺點，以及在實際應用中遇到的挑戰和經驗。</p>
+<p><strong>背景</strong></p>
+<p>隨著微服務架構的普及，服務發現、流量管理、故障轉移等問題日益重要。服務網狀架構 (Service Mesh) 應運而生，提供解決這些問題的工具和技術。Linkerd 和 Service Mesh 都是常見的服務網狀架構選項，但它們在功能、複雜度和部署方式上存在差異。</p>
+<p><strong>Linkerd 的優勢</strong></p>
+<ul>
+<li><strong>輕量級：</strong> Linkerd 採用 Sidecar 架構，每個微服務都有一個 Linkerd 代理，因此資源消耗相對較低。</li>
+<li><strong>易於部署：</strong> Linkerd 的部署相對簡單，可以使用 Helm 或 Kubernetes 的原生工具進行部署。</li>
+<li><strong>良好的 API 支持：</strong> Linkerd 支持 Gateway API 和 HTTP/gRPC 路由，方便與其他系統整合。</li>
+<li><strong>成熟的社區支持：</strong> Linkerd 擁有活躍的開發者社群，提供豐富的資源和支持。</li>
+</ul>
+<p><strong>Linkerd 的挑戰</strong></p>
+<ul>
+<li><strong>功能有限：</strong> Linkerd 的功能相對較少，例如缺乏原生支持的服務層級指標 (Service Level Metrics) 和自動故障轉移。</li>
+<li><strong>對第三方工具的依賴：</strong> Linkerd 需要與其他工具配合使用，例如 APM 系統和儀表板，才能獲得完整的監控和分析能力。</li>
+</ul>
+<p><strong>Service Mesh 的優勢</strong></p>
+<ul>
+<li><strong>功能豐富：</strong> Service Mesh 通常提供更豐富的功能，例如自動故障轉移、流量控制、安全驗證等。</li>
+<li><strong>更強的監控和分析能力：</strong> Service Mesh 通常提供更完善的監控和分析工具，例如服務層級指標和可視化儀表板。</li>
+</ul>
+<p><strong>Service Mesh 的挑戰</strong></p>
+<ul>
+<li><strong>複雜度高：</strong> Service Mesh 的部署和管理相對複雜，需要更深入的技術知識。</li>
+<li><strong>資源消耗高：</strong> Service Mesh 通常需要更多的資源，例如 CPU 和記憶體。</li>
+</ul>
+<p><strong>我們的選擇</strong></p>
+<p>基於我們的需求和實際應用經驗，我們選擇了 Linkerd 作為我們的服務網狀架構。Linkerd 的輕量級特性和易於部署的特性符合我們的需求，並且我們可以通過與其他工具的整合來彌補其功能上的不足。</p>
+<p><strong>未來展望</strong></p>
+<p>我們將繼續關注 Linkerd 和 Service Mesh 的發展趨勢，並根據實際需求調整我們的選擇。我們相信，服務網狀架構將在微服務架構的發展中扮演越來越重要的角色。</p>
+    </html>
+    
