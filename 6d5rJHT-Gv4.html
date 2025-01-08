@@ -1,0 +1,24 @@
+
+    <html>
+      <h1>gRPC 與 OpenTelemetry：打造分布式系統的強大可觀察性</h1>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/6d5rJHT-Gv4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      <h2>gRPC 與 OpenTelemetry：打造分布式系統的強大可觀察性</h2>
+<p>這篇文章將深入探討 gRPC 和 OpenTelemetry 追蹤的領域，解釋它們如何共同為分布式系統提供強大的可觀察性。</p>
+<p><strong>關鍵 takeaways:</strong></p>
+<ul>
+<li><strong>gRPC 和 OpenTelemetry：強強聯手:</strong> gRPC 是一種高性能的 RPC 框架，從 OpenTelemetry 這個中立於廠商的可觀察性標準中獲益良多。這種組合讓開發者能夠有效地監控和排查 gRPC 應用程式。</li>
+<li><strong>OpenTelemetry 追蹤:</strong> OpenTelemetry 提供一種標準化的方式來裝配應用程式並收集追蹤數據。這些數據揭示了請求和響應在服務間的流動，有助於識別瓶頸和性能問題。</li>
+<li><strong>文字映射傳播:</strong> gRPC 使用一種稱為「文字映射傳播」的機制，在服務之間傳遞追蹤上下文資訊。這涉及在 gRPC 請求和響應中添加標頭，讓 OpenTelemetry 可以追蹤請求的流動。</li>
+<li><strong>gRPC OpenTelemetry 插件:</strong> 有一個專門的插件用於將 OpenTelemetry 與 gRPC 整合。這個插件處理文字映射傳播的複雜性，並提供無縫的追蹤體驗。</li>
+<li><strong>承載物件:</strong> 插件利用「承載物件」來管理追蹤上下文。這個物件讀寫追蹤標頭，確保在服務間正確傳播。</li>
+<li><strong>未來發展:</strong> OpenTelemetry 正在積極發展，計劃支持二進制標頭和其他增強功能。gRPC 社群也在努力改進與 OpenTelemetry 的整合。</li>
+</ul>
+<p><strong>使用 OpenTelemetry 與 gRPC 的好處:</strong></p>
+<ul>
+<li><strong>提升可觀察性:</strong> 獲得對 gRPC 應用程式行為更深入的洞察。</li>
+<li><strong>增強排查問題:</strong> 方便地識別和解決性能問題和錯誤。</li>
+<li><strong>簡化監控:</strong> 監控分布式系統的健康狀況和性能。</li>
+<li><strong>中立於廠商的標準:</strong> 利用廣泛採用的一種可觀察性標準。</li>
+</ul>
+    </html>
+    

@@ -1,0 +1,21 @@
+
+    <html>
+      <h1>使用 NF Test 確保生產級 Kubernetes Operator 的可靠性</h1>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/9uDr2SpDdrQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      <h2>使用 NF Test 確保生產級 Kubernetes Operator 的可靠性</h2>
+<p>這篇演講「Ensuring Reliability of Production Ready Kubernetes Operators Using NF Test」探討了測試 Kubernetes Operator 的挑戰，並介紹 NF Test 作為解決方案。</p>
+<p><strong>主要重點:</strong></p>
+<ul>
+<li><strong>傳統測試的局限性:</strong> 端對端 (E2E) 測試對於在真實環境中驗證 Operator 至關重要，但耗時較長。單元測試缺乏完整 Kubernetes 環境的上下文。</li>
+<li><strong>NF Test 的優勢:</strong> NF Test 提供一種比 E2E 測試更快的替代方案，同時提供比單元測試更逼真的 Kubernetes 環境。它使用輕量級 Kubernetes API 伺服器和狀態管理，而無需完整的集群。</li>
+<li><strong>NF Test 的實施:</strong> 演講演示了如何為 Operator 撰寫 NF Test，重點介紹了最佳實務，例如：<ul>
+<li>使用命名空間進行隔離。</li>
+<li>使用帶有超時值的異步測試。</li>
+<li>利用模擬器進行雲端 API 相互作用。</li>
+</ul>
+</li>
+<li><strong>實際案例:</strong> NF Test 被 Cluster API 等項目廣泛使用，並受到 Azure 和 AWS 等雲端提供商的支持，證明了其在生產環境中的有效性。</li>
+</ul>
+<p><strong>總體而言，演講強調了 NF Test 對於確保 Kubernetes Operator 的可靠性和健壯性的益處。</strong></p>
+    </html>
+    

@@ -1,0 +1,34 @@
+
+    <html>
+      <h1>Kubernetes 環境中 X509 憑證管理的挑戰與解決方案</h1>
+      <iframe width="560" height="315" src="https://www.youtube.com/embed/4OTUNSI3DG4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      <h2>Kubernetes 環境中 X509 憑證管理的挑戰與解決方案</h2>
+<p>本篇文章探討 Kubernetes 環境中 X509 憑證管理的挑戰以及解決方案。</p>
+<p><strong>挑戰:</strong></p>
+<ul>
+<li>為內部服務間通訊生成和管理憑證。</li>
+<li>當服務在節點間移動以進行負載平衡時，處理憑證可用性。</li>
+<li>將導入的憑證傳播到現有的服務。</li>
+<li>當群集 IP 位址或 FQDN 更改時更新憑證。</li>
+</ul>
+<p><strong>解決方案：Kubernetes Certificate Operator</strong></p>
+<p>Kubernetes Certificate Operator 通過提供一套簡化憑證管理的客製化資源 (CRD) 來解決這些挑戰。</p>
+<p><strong>主要功能:</strong></p>
+<ul>
+<li><strong>動態憑證生成:</strong>  操作員會自動為內部和外部服務生成具有正確身份資訊的憑證。</li>
+<li><strong>與 Certificate Transparency (CT) Manager 和 Trust Manager 的整合:</strong>  利用現有的工具進行憑證生命週期管理。</li>
+<li><strong>動態更新:</strong>  當群集配置發生變化時（例如 IP 位址、FQDN）自動處理憑證更新。</li>
+<li><strong>導入功能:</strong>  允許將外部生成的憑證和 CRL 導入群集。</li>
+<li><strong>簡化使用:</strong>  提供易於使用的 CRD，抽象化複雜的憑證管理任務。</li>
+</ul>
+<p><strong>優點:</strong></p>
+<ul>
+<li><strong>無縫整合:</strong>  與現有的 Kubernetes 架構無縫配合。</li>
+<li><strong>簡化管理:</strong>  減少憑證管理的複雜性。</li>
+<li><strong>動態更新:</strong>  確保憑證始終是最新的有效憑證。</li>
+<li><strong>提升安全性:</strong>  為微服務提供安全可靠的憑證管理方式。</li>
+</ul>
+<p><strong>結論</strong></p>
+<p>本演講重點介紹了在 Kubernetes 環境中使用 Kubernetes Certificate Operator 管理 X509 憑證的優勢。</p>
+    </html>
+    
