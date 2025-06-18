@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>即時 GPS 定位 + 移動路徑</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    const map = L.map('map').setView([23.5, 121], 7); // 台灣地圖預設
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap 貢獻者'
+    }).addTo(map);
+
+    let marker = null;
+    let pathPoints = [];           // 儲存路徑的點
+    let polyline = null;           // 路徑線物件
+
+    function updatePosition(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const currentPoint = [lat, lng];
+
+      // 更新標記位置
+      if (!marker) {
+        marker = L.marker(currentPoint).addTo(map).bindPopup("你現在在這裡").openPopup();
+      } else {
+        marker.setLatLng(currentPoint);
+      }
+
+      // 加入到路徑點陣列
+      pathPoints.push(currentPoint);
+
+      // 更新或重繪路徑線
+      if (!polyline) {
+        polyline = L.polyline(pathPoints, { color: 'red' }).addTo(map);
+      } else {
+        polyline.setLatLngs(pathPoints);
+      }
+
+      // 讓地圖跟隨使用者
+      map.setView(currentPoint, 16);
+    }
+
+    function showError(error) {
+      alert("無法取得位置資訊: " + error.message);
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(updatePosition, showError, {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 5000
+      });
+    } else {
+      alert("你的瀏覽器不支援 GPS 功能");
+    }
+  </script>
+</body>
+</html>
+
