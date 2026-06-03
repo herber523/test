@@ -6,20 +6,29 @@ import { joinRoom as joinMqtt } from '@trystero-p2p/mqtt';
 import { joinRoom as joinTorrent } from '@trystero-p2p/torrent';
 
 // --- 1. Identity & P2P Data Management ---
-const myId = ref(''); // Persistent locator_uid (localStorage)
+const myId = ref(''); 
 const myName = ref('');
 const myLocation = ref(null);
-const others = ref(new Map()); // uid -> {name, lat, lng, peerIds: Map<strat, peerId>}
+const others = ref(new Map()); 
 
 // --- 2. Trystero P2P Setup ---
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' }
+  ]
+};
+
 const STRATEGIES = [
   { name: 'nostr', join: joinNostr },
   { name: 'mqtt', join: joinMqtt },
   { name: 'torrent', join: joinTorrent }
 ];
 
-const rooms = ref(new Map()); // stratName -> room
-const locActions = ref(new Map()); // stratName -> action
+const rooms = ref(new Map()); 
+const locActions = ref(new Map()); 
 
 const initP2P = () => {
   const params = new URLSearchParams(window.location.search);
@@ -33,30 +42,33 @@ const initP2P = () => {
 
   STRATEGIES.forEach(strat => {
     try {
-      const room = strat.join({ appId: 'p2p-pin-locator-v1' }, roomId);
+      // appId consistency check
+      const room = strat.join({ 
+        appId: 'p2p-pin-locator-v1',
+        rtcConfig: RTC_CONFIG 
+      }, roomId);
+      
       const locAction = room.makeAction('loc');
-
       rooms.value.set(strat.name, room);
       locActions.value.set(strat.name, locAction);
 
       locAction.onMessage = (data, meta) => {
         if (!data.uid) return;
         const peerId = typeof meta === 'object' ? meta.peerId : meta;
-        
-        console.log(`[P2P Receive] From: ${data.uid} via ${strat.name} (${peerId})`);
+        console.log(`[P2P Receive] ${data.uid} via ${strat.name}`);
         
         const existing = others.value.get(data.uid) || { ...data, peerIds: new Map() };
         existing.lat = data.lat;
         existing.lng = data.lng;
         existing.name = data.name;
         existing.peerIds.set(strat.name, peerId);
-        
         others.value.set(data.uid, existing);
         updateMapMarkers();
       };
 
       room.onPeerJoin = (peerId) => {
-        console.log(`[P2P Join] ${strat.name} connected: ${peerId}`);
+        console.log(`[P2P Join] ${strat.name} found someone: ${peerId}`);
+        // Immediate broadcast to the new peer
         if (myLocation.value) {
           locAction.send({
             uid: myId.value,
@@ -68,7 +80,6 @@ const initP2P = () => {
       };
 
       room.onPeerLeave = (peerId) => {
-        console.log(`[P2P Leave] ${strat.name} disconnected: ${peerId}`);
         for (const [uid, data] of others.value.entries()) {
           if (data.peerIds.get(strat.name) === peerId) {
             data.peerIds.delete(strat.name);
@@ -84,7 +95,7 @@ const initP2P = () => {
         }
       };
     } catch (e) {
-      console.error(`Failed to init strategy ${strat.name}:`, e);
+      console.error(`Failed strategy ${strat.name}:`, e);
     }
   });
 };
@@ -92,7 +103,7 @@ const initP2P = () => {
 // --- 3. UI & State ---
 const isLocating = ref(false);
 const mapInstance = ref(null);
-const markers = ref({}); // uid -> Marker instance
+const markers = ref({}); 
 const hasInitiallyCentered = ref(false);
 const nextSyncIn = ref(10); 
 const toastVisible = ref(false);
@@ -106,10 +117,7 @@ const showToast = (msg) => {
   toastTimeout = setTimeout(() => { toastVisible.value = false; }, 3000);
 };
 
-const activeOthers = computed(() => {
-  return Array.from(others.value.entries()); // [uid, data]
-});
-
+const activeOthers = computed(() => Array.from(others.value.entries()));
 const shortId = (id) => id ? id.replace('u_', '').slice(0, 4) : '....';
 
 // --- 4. Main Location Logic ---
@@ -117,14 +125,8 @@ let syncInterval = null;
 let timerInterval = null;
 
 const updateLocation = (isManualClick = false) => {
-  if (!navigator.geolocation) {
-    if (isManualClick) showToast('您的瀏覽器不支援地理位置功能');
-    return;
-  }
-  if (!myName.value.trim()) {
-    if (isManualClick) showToast('請先設定您的名稱');
-    return;
-  }
+  if (!navigator.geolocation) return isManualClick && showToast('不支援定位');
+  if (!myName.value.trim()) return isManualClick && showToast('請先設名稱');
 
   isLocating.value = true;
   navigator.geolocation.getCurrentPosition(
@@ -133,22 +135,16 @@ const updateLocation = (isManualClick = false) => {
       const { latitude: lat, longitude: lng } = pos.coords;
       myLocation.value = { lat, lng };
 
-      // Broadcast through ALL active strategies
       const payload = { uid: myId.value, name: myName.value, lat, lng };
       locActions.value.forEach(action => action.send(payload));
 
-      if (isManualClick) {
-        navigator.clipboard.writeText(window.location.href).then(() => {
-          showToast('📍 網址已複製！已透過多重管道同步。');
-        });
-      }
-
+      if (isManualClick) showToast('📍 位置已廣播並複製網址！');
       updateMapMarkers();
       nextSyncIn.value = 10; 
     },
     (err) => {
       isLocating.value = false;
-      if (isManualClick) showToast('無法取得位置，請確認定位權限已開啟');
+      if (isManualClick) showToast('定位失敗，請檢查權限');
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
@@ -159,15 +155,12 @@ const startAutoSync = () => {
   if (timerInterval) clearInterval(timerInterval);
   updateLocation(false);
   syncInterval = setInterval(() => updateLocation(false), 10000);
-  timerInterval = setInterval(() => {
-    if (nextSyncIn.value > 0) nextSyncIn.value--;
-  }, 1000);
+  timerInterval = setInterval(() => { if (nextSyncIn.value > 0) nextSyncIn.value--; }, 1000);
 };
 
 const handleShare = () => {
-  navigator.clipboard.writeText(window.location.href).then(() => {
-    showToast('📍 網址已複製！分享網址即可即時尋人。');
-  });
+  navigator.clipboard.writeText(window.location.href);
+  showToast('網址已複製！');
   updateLocation(false);
 };
 
@@ -197,16 +190,13 @@ const initMap = () => {
   fixLeafletIcon();
   const map = L.map('map', { zoomControl: false }).setView([23.58, 120.58], 15);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
   mapInstance.value = map;
 };
 
 const updateMapMarkers = () => {
   if (!mapInstance.value) return;
   const map = mapInstance.value;
-
   activeOthers.value.forEach(([uid, data]) => {
     if (!markers.value[uid]) {
       markers.value[uid] = L.marker([data.lat, data.lng], { icon: createMarkerIcon(data.name) })
@@ -216,19 +206,14 @@ const updateMapMarkers = () => {
       markers.value[uid].setLatLng([data.lat, data.lng]);
     }
   });
-
   if (myLocation.value && myName.value) {
     if (!markers.value['me']) {
-      markers.value['me'] = L.marker([myLocation.value.lat, myLocation.value.lng], { 
-        icon: createMarkerIcon(myName.value, true),
-        zIndexOffset: 1000 
-      })
+      markers.value['me'] = L.marker([myLocation.value.lat, myLocation.value.lng], { icon: createMarkerIcon(myName.value, true), zIndexOffset: 1000 })
         .bindPopup(`<div class="font-sans text-sm font-medium px-1 text-blue-600">${myName.value} (You)</div>`)
         .addTo(map);
     } else {
       markers.value['me'].setLatLng([myLocation.value.lat, myLocation.value.lng]);
     }
-
     if (!hasInitiallyCentered.value) {
       map.flyTo([myLocation.value.lat, myLocation.value.lng], 15, { animate: true, duration: 1 });
       hasInitiallyCentered.value = true;
@@ -240,8 +225,7 @@ watch(myName, (newName) => {
   if (newName) {
     localStorage.setItem('locator_name', newName.trim());
     if (markers.value['me']) markers.value['me'].setIcon(createMarkerIcon(newName, true));
-    const payload = { uid: myId.value, name: newName.trim(), ...myLocation.value };
-    locActions.value.forEach(action => action.send(payload));
+    locActions.value.forEach(action => action.send({ uid: myId.value, name: newName.trim(), ...myLocation.value }));
   }
 });
 
@@ -250,7 +234,6 @@ onMounted(() => {
   localStorage.setItem('locator_uid', myId.value);
   myName.value = localStorage.getItem('locator_name') || ('訪客_' + Math.floor(Math.random() * 9999));
   localStorage.setItem('locator_name', myName.value);
-
   initP2P();
   nextTick(() => { initMap(); startAutoSync(); });
 });
@@ -268,56 +251,34 @@ onUnmounted(() => {
       <div class="text-center md:text-left space-y-1 mb-2">
         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3 mx-auto md:mx-0 text-2xl font-bold">📍</div>
         <h1 class="text-2xl font-bold tracking-tight">群組定點尋人 (P2P)</h1>
-        <p class="text-sm text-gray-500">多重管道同步中 (倒數：{{ nextSyncIn }}s) · 0 Server</p>
+        <p class="text-sm text-gray-500">多路徑同步 (倒數：{{ nextSyncIn }}s) · 無 Server</p>
       </div>
-
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden shrink-0">
-        <div class="p-4 border-b border-gray-50 bg-gray-50/50">
-          <h2 class="text-sm font-semibold flex items-center gap-2 text-gray-700">👤 我是誰 (可支援中文)</h2>
-        </div>
-        <div class="p-4">
-          <input v-model="myName" type="text" maxlength="12" placeholder="請輸入您的名稱..." class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-300 text-lg font-medium">
-        </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <h2 class="text-sm font-semibold mb-2 text-gray-700">👤 我是誰</h2>
+        <input v-model="myName" type="text" maxlength="12" class="w-full px-4 py-2 rounded-xl border border-gray-200 outline-none">
       </div>
-
-      <div class="grid gap-3 shrink-0">
-        <button @click="handleShare" :disabled="!myName" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 px-6 font-semibold shadow-sm shadow-blue-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:bg-blue-300 disabled:cursor-not-allowed">
-          <span>🔗</span> 分享網址並複製
-        </button>
-      </div>
-
+      <button @click="handleShare" :disabled="!myName" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-semibold shadow-sm">🔗 分享網址並複製</button>
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[200px]">
         <div class="p-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-          <h2 class="text-sm font-semibold flex items-center gap-2 text-gray-700">📍 即時位置名單</h2>
-          <span v-if="isLocating" class="text-xs text-blue-500 animate-pulse font-medium">更新中...</span>
+          <h2 class="text-sm font-semibold text-gray-700">📍 即時位置名單</h2>
         </div>
         <div class="divide-y divide-gray-50">
-          <div class="p-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 shrink-0 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">{{ getInitials(myName) }}</div>
-              <div class="min-w-0">
-                <div class="font-medium text-gray-900 flex items-center gap-2 truncate">
-                  {{ myName || '未設定名稱' }}
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 shrink-0">YOU</span>
-                </div>
-                <div class="text-[10px] text-gray-400 font-mono -mt-1 mb-1">ID: {{ myId }}</div>
-                <div class="text-xs text-gray-500">{{ myLocation ? `${myLocation.lat.toFixed(5)}, ${myLocation.lng.toFixed(5)}` : '尚未取得定位' }}</div>
-              </div>
+          <div class="p-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">{{ getInitials(myName) }}</div>
+            <div class="min-w-0">
+              <div class="font-medium text-gray-900 truncate">{{ myName }} <span class="text-[10px] bg-gray-100 px-1 rounded">YOU</span></div>
+              <div class="text-[10px] text-gray-400 font-mono">ID: {{ myId }}</div>
             </div>
           </div>
-
-          <div v-if="activeOthers.length === 0" class="p-6 text-center text-sm text-gray-400">
-            <span class="block mb-1">📭</span> 等待其他人加入房間...
-          </div>
-          <div v-for="[uid, data] in activeOthers" :key="uid" class="p-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+          <div v-if="activeOthers.length === 0" class="p-6 text-center text-sm text-gray-400">📭 等待其他人加入...</div>
+          <div v-for="[uid, data] in activeOthers" :key="uid" class="p-4">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 shrink-0 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">{{ getInitials(data.name) }}</div>
+              <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">{{ getInitials(data.name) }}</div>
               <div class="min-w-0">
                 <div class="font-medium text-gray-900 truncate">{{ data.name }}</div>
-                <div class="text-[10px] text-gray-400 font-mono -mt-1 mb-1">ID: {{ uid }}</div>
-                <div class="text-xs text-gray-500">{{ data.lat.toFixed(5) }}, {{ data.lng.toFixed(5) }}</div>
+                <div class="text-[10px] text-gray-400 font-mono">ID: {{ uid }}</div>
                 <div class="flex gap-1 mt-1">
-                   <span v-for="strat in data.peerIds.keys()" :key="strat" class="px-1 py-0.5 rounded bg-gray-100 border border-gray-200 text-[8px] text-gray-500 uppercase">{{ strat }}</span>
+                   <span v-for="strat in data.peerIds.keys()" :key="strat" class="px-1 py-0.5 rounded bg-gray-100 text-[8px] text-gray-500 uppercase">{{ strat }}</span>
                 </div>
               </div>
             </div>
@@ -325,13 +286,11 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-
-    <div class="w-full flex-grow min-h-[50vh] md:h-full bg-white rounded-2xl border border-gray-200 overflow-hidden relative z-0 shadow-sm">
+    <div class="w-full flex-grow min-h-[50vh] md:h-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
       <div id="map" class="w-full h-full"></div>
     </div>
-
     <transition name="toast">
-      <div v-if="toastVisible" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg z-50 text-sm font-medium whitespace-nowrap">{{ toastMessage }}</div>
+      <div v-if="toastVisible" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full z-50 text-sm">{{ toastMessage }}</div>
     </transition>
   </div>
 </template>
