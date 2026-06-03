@@ -9,7 +9,8 @@ import { joinRoom as joinTorrent } from '@trystero-p2p/torrent';
 const myId = ref(''); 
 const myName = ref('');
 const myLocation = ref(null);
-const others = ref(new Map()); 
+const lastSyncAt = ref(Date.now());
+const others = ref(new Map()); // uid -> {name, lat, lng, peerIds: Map, lastSeen: number, isOnline: bool}
 
 // --- 2. Trystero P2P Setup ---
 const RTC_CONFIG = {
@@ -33,7 +34,6 @@ const locActions = ref(new Map());
 const initP2P = () => {
   const params = new URLSearchParams(window.location.search);
   let roomId = params.get('room');
-  
   if (!roomId) {
     roomId = 'r_' + Math.random().toString(36).substring(2, 8);
     params.set('room', roomId);
@@ -42,12 +42,7 @@ const initP2P = () => {
 
   STRATEGIES.forEach(strat => {
     try {
-      // appId consistency check
-      const room = strat.join({ 
-        appId: 'p2p-pin-locator-v1',
-        rtcConfig: RTC_CONFIG 
-      }, roomId);
-      
+      const room = strat.join({ appId: 'p2p-pin-locator-v1', rtcConfig: RTC_CONFIG }, roomId);
       const locAction = room.makeAction('loc');
       rooms.value.set(strat.name, room);
       locActions.value.set(strat.name, locAction);
@@ -57,42 +52,41 @@ const initP2P = () => {
         const peerId = typeof meta === 'object' ? meta.peerId : meta;
         console.log(`[P2P Receive] ${data.uid} via ${strat.name}`);
         
-        const existing = others.value.get(data.uid) || { ...data, peerIds: new Map() };
-        existing.lat = data.lat;
-        existing.lng = data.lng;
-        existing.name = data.name;
-        existing.peerIds.set(strat.name, peerId);
-        others.value.set(data.uid, existing);
+        const now = Date.now();
+        const existing = others.value.get(data.uid) || { peerIds: new Map() };
+        
+        others.value.set(data.uid, {
+          ...existing,
+          ...data,
+          lastSeen: now,
+          isOnline: true,
+          peerId // Store for reference
+        });
+        
+        others.value.get(data.uid).peerIds.set(strat.name, peerId);
         updateMapMarkers();
       };
 
       room.onPeerJoin = (peerId) => {
-        console.log(`[P2P Join] ${strat.name} found someone: ${peerId}`);
-        // Immediate broadcast to the new peer
+        console.log(`[P2P Join] ${strat.name} found: ${peerId}`);
         if (myLocation.value) {
-          locAction.send({
-            uid: myId.value,
-            name: myName.value,
-            lat: myLocation.value.lat,
-            lng: myLocation.value.lng
-          }, peerId);
+          locAction.send({ uid: myId.value, name: myName.value, lat: myLocation.value.lat, lng: myLocation.value.lng }, peerId);
         }
       };
 
       room.onPeerLeave = (peerId) => {
+        console.log(`[P2P Leave] ${strat.name} lost: ${peerId}`);
         for (const [uid, data] of others.value.entries()) {
           if (data.peerIds.get(strat.name) === peerId) {
             data.peerIds.delete(strat.name);
             if (data.peerIds.size === 0) {
-              others.value.delete(uid);
-              if (markers.value[uid]) {
-                mapInstance.value.removeLayer(markers.value[uid]);
-                delete markers.value[uid];
-              }
+              data.isOnline = false;
+              // We DON'T delete the record anymore. Keep it as "Offline".
             }
             break;
           }
         }
+        updateMapMarkers();
       };
     } catch (e) {
       console.error(`Failed strategy ${strat.name}:`, e);
@@ -117,8 +111,21 @@ const showToast = (msg) => {
   toastTimeout = setTimeout(() => { toastVisible.value = false; }, 3000);
 };
 
-const activeOthers = computed(() => Array.from(others.value.entries()));
+const activeOthers = computed(() => {
+  // Sort: online first, then by lastSeen desc
+  return Array.from(others.value.entries()).sort((a, b) => {
+    if (a[1].isOnline !== b[1].isOnline) return b[1].isOnline ? 1 : -1;
+    return b[1].lastSeen - a[1].lastSeen;
+  });
+});
+
 const shortId = (id) => id ? id.replace('u_', '').slice(0, 4) : '....';
+const formatTime = (ts) => {
+  if (!ts) return '未知';
+  const sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 60) return `${sec}s 前`;
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 // --- 4. Main Location Logic ---
 let syncInterval = null;
@@ -134,11 +141,12 @@ const updateLocation = (isManualClick = false) => {
       isLocating.value = false;
       const { latitude: lat, longitude: lng } = pos.coords;
       myLocation.value = { lat, lng };
+      lastSyncAt.value = Date.now();
 
       const payload = { uid: myId.value, name: myName.value, lat, lng };
       locActions.value.forEach(action => action.send(payload));
 
-      if (isManualClick) showToast('📍 位置已廣播並複製網址！');
+      if (isManualClick) showToast('📍 位置已更新！');
       updateMapMarkers();
       nextSyncIn.value = 10; 
     },
@@ -176,10 +184,11 @@ const fixLeafletIcon = () => {
 
 const getInitials = (name) => (name || '?').charAt(0).toUpperCase();
 
-const createMarkerIcon = (name, isMe = false) => {
+const createMarkerIcon = (name, isMe = false, isOnline = true) => {
+  const colorClass = isMe ? 'bg-blue-600' : (isOnline ? 'bg-gray-800' : 'bg-gray-400 grayscale');
   return L.divIcon({
     className: 'bg-transparent border-none',
-    html: `<div class="flex items-center justify-center w-8 h-8 rounded-full ${isMe ? 'bg-blue-600' : 'bg-gray-800'} text-white font-bold shadow-lg ring-2 ring-white text-xs">${getInitials(name)}</div>`,
+    html: `<div class="flex items-center justify-center w-8 h-8 rounded-full ${colorClass} text-white font-bold shadow-lg ring-2 ring-white text-xs opacity-${isOnline ? '100' : '70'}">${getInitials(name)}</div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32]
@@ -197,19 +206,24 @@ const initMap = () => {
 const updateMapMarkers = () => {
   if (!mapInstance.value) return;
   const map = mapInstance.value;
+
+  // Others
   activeOthers.value.forEach(([uid, data]) => {
     if (!markers.value[uid]) {
-      markers.value[uid] = L.marker([data.lat, data.lng], { icon: createMarkerIcon(data.name) })
-        .bindPopup(`<div class="font-sans text-sm font-medium px-1">${data.name} <small class="text-gray-400">(${shortId(uid)})</small></div>`)
+      markers.value[uid] = L.marker([data.lat, data.lng], { icon: createMarkerIcon(data.name, false, data.isOnline) })
+        .bindPopup(`<div class="font-sans text-sm font-medium px-1">${data.name} <small class="text-gray-400">(${shortId(uid)})</small><br/><span class="text-[10px] text-gray-500">最後更新: ${formatTime(data.lastSeen)}</span></div>`)
         .addTo(map);
     } else {
       markers.value[uid].setLatLng([data.lat, data.lng]);
+      markers.value[uid].setIcon(createMarkerIcon(data.name, false, data.isOnline));
     }
   });
+
+  // Self
   if (myLocation.value && myName.value) {
     if (!markers.value['me']) {
       markers.value['me'] = L.marker([myLocation.value.lat, myLocation.value.lng], { icon: createMarkerIcon(myName.value, true), zIndexOffset: 1000 })
-        .bindPopup(`<div class="font-sans text-sm font-medium px-1 text-blue-600">${myName.value} (You)</div>`)
+        .bindPopup(`<div class="font-sans text-sm font-medium px-1 text-blue-600">${myName.value} (You)<br/><span class="text-[10px] text-gray-500">最後更新: ${formatTime(lastSyncAt.value)}</span></div>`)
         .addTo(map);
     } else {
       markers.value['me'].setLatLng([myLocation.value.lat, myLocation.value.lng]);
@@ -241,7 +255,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (syncInterval) clearInterval(syncInterval);
   if (timerInterval) clearInterval(timerInterval);
-  rooms.value.forEach(room => room.leave());
 });
 </script>
 
@@ -251,33 +264,43 @@ onUnmounted(() => {
       <div class="text-center md:text-left space-y-1 mb-2">
         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3 mx-auto md:mx-0 text-2xl font-bold">📍</div>
         <h1 class="text-2xl font-bold tracking-tight">群組定點尋人 (P2P)</h1>
-        <p class="text-sm text-gray-500">多路徑同步 (倒數：{{ nextSyncIn }}s) · 無 Server</p>
+        <p class="text-sm text-gray-500">多路徑同步 (倒數：{{ nextSyncIn }}s) · 0 Server</p>
       </div>
+
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
         <h2 class="text-sm font-semibold mb-2 text-gray-700">👤 我是誰</h2>
         <input v-model="myName" type="text" maxlength="12" class="w-full px-4 py-2 rounded-xl border border-gray-200 outline-none">
       </div>
+
       <button @click="handleShare" :disabled="!myName" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-semibold shadow-sm">🔗 分享網址並複製</button>
+
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[200px]">
-        <div class="p-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-          <h2 class="text-sm font-semibold text-gray-700">📍 即時位置名單</h2>
+        <div class="p-4 border-b border-gray-50 bg-gray-50/50">
+          <h2 class="text-sm font-semibold text-gray-700">📍 位置名單</h2>
         </div>
         <div class="divide-y divide-gray-50">
-          <div class="p-4 flex items-center gap-3">
+          <!-- ME -->
+          <div class="p-4 flex items-center gap-3 bg-blue-50/30">
             <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">{{ getInitials(myName) }}</div>
             <div class="min-w-0">
-              <div class="font-medium text-gray-900 truncate">{{ myName }} <span class="text-[10px] bg-gray-100 px-1 rounded">YOU</span></div>
-              <div class="text-[10px] text-gray-400 font-mono">ID: {{ myId }}</div>
+              <div class="font-medium text-gray-900 truncate">{{ myName }} <span class="text-[10px] bg-blue-100 text-blue-600 px-1 rounded">YOU</span></div>
+              <div class="text-[10px] text-gray-400 font-mono">ID: {{ myId }} · 最近: {{ formatTime(lastSyncAt) }}</div>
             </div>
           </div>
+          <!-- OTHERS -->
           <div v-if="activeOthers.length === 0" class="p-6 text-center text-sm text-gray-400">📭 等待其他人加入...</div>
-          <div v-for="[uid, data] in activeOthers" :key="uid" class="p-4">
+          <div v-for="[uid, data] in activeOthers" :key="uid" class="p-4" :class="{'opacity-60': !data.isOnline}">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">{{ getInitials(data.name) }}</div>
-              <div class="min-w-0">
-                <div class="font-medium text-gray-900 truncate">{{ data.name }}</div>
-                <div class="text-[10px] text-gray-400 font-mono">ID: {{ uid }}</div>
-                <div class="flex gap-1 mt-1">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" :class="data.isOnline ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-400'">
+                {{ getInitials(data.name) }}
+              </div>
+              <div class="min-w-0 flex-grow">
+                <div class="font-medium text-gray-900 truncate flex items-center gap-2">
+                  {{ data.name }}
+                  <span v-if="!data.isOnline" class="text-[9px] bg-gray-200 text-gray-500 px-1 rounded font-normal">離線</span>
+                </div>
+                <div class="text-[10px] text-gray-400 font-mono">ID: {{ uid }} · 最近: {{ formatTime(data.lastSeen) }}</div>
+                <div class="flex gap-1 mt-1" v-if="data.isOnline">
                    <span v-for="strat in data.peerIds.keys()" :key="strat" class="px-1 py-0.5 rounded bg-gray-100 text-[8px] text-gray-500 uppercase">{{ strat }}</span>
                 </div>
               </div>
@@ -286,11 +309,16 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <div class="w-full flex-grow min-h-[50vh] md:h-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-      <div id="map" class="w-full h-full"></div>
+
+    <div class="w-full flex-grow min-h-[50vh] md:h-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm relative">
+       <div id="map" class="w-full h-full"></div>
+       <div class="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur px-3 py-1.5 rounded-full shadow-sm border border-gray-100 text-[10px] font-medium text-gray-500">
+         最後同步：{{ formatTime(lastSyncAt) }}
+       </div>
     </div>
+
     <transition name="toast">
-      <div v-if="toastVisible" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full z-50 text-sm">{{ toastMessage }}</div>
+      <div v-if="toastVisible" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full z-50 text-sm shadow-xl">{{ toastMessage }}</div>
     </transition>
   </div>
 </template>
