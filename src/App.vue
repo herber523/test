@@ -50,11 +50,11 @@ const initP2P = () => {
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
   }
 
-  addLog(`Room ID: ${roomId}`, 'sys');
+  addLog(`Room Target: ${roomId}`, 'sys');
 
   STRATEGIES.forEach(strat => {
     try {
-      addLog(`[${strat.name}] Joining...`, 'info');
+      addLog(`[${strat.name}] Init...`, 'info');
       const room = strat.join({ appId: 'p2p-pin-locator-v1', rtcConfig: RTC_CONFIG }, roomId);
       const locAction = room.makeAction('loc');
       
@@ -63,34 +63,27 @@ const initP2P = () => {
 
       locAction.onMessage = (data, meta) => {
         const peerId = typeof meta === 'object' ? meta.peerId : meta;
-        addLog(`[${strat.name}] 📥 DATA from ${data.uid}`, 'recv');
+        addLog(`[${strat.name}] 📥 RECV from ${data.uid}`, 'recv');
         
         if (!data.uid) return;
-        
         const now = Date.now();
         const existing = others.value.get(data.uid) || { peerIds: new Map() };
-        
-        others.value.set(data.uid, {
-          ...existing,
-          ...data,
-          lastSeen: now,
-          isOnline: true,
-          peerId 
-        });
-        
+        others.value.set(data.uid, { ...existing, ...data, lastSeen: now, isOnline: true, peerId });
         others.value.get(data.uid).peerIds.set(strat.name, peerId);
         updateMapMarkers();
       };
 
       room.onPeerJoin = (peerId) => {
-        addLog(`[${strat.name}] 🟢 PEER JOINED: ${peerId.slice(0,6)}`, 'success');
+        addLog(`[${strat.name}] 🟢 PEER IN: ${peerId.slice(0,6)}`, 'success');
         if (myLocation.value) {
-          locAction.send({ uid: myId.value, name: myName.value, lat: myLocation.value.lat, lng: myLocation.value.lng }, peerId);
+          const payload = { uid: myId.value, name: myName.value, lat: myLocation.value.lat, lng: myLocation.value.lng };
+          addLog(`[${strat.name}] 📤 SEND Greeting to ${peerId.slice(0,6)}`, 'info');
+          locAction.send(payload, peerId);
         }
       };
 
       room.onPeerLeave = (peerId) => {
-        addLog(`[${strat.name}] 🔴 PEER LEFT: ${peerId.slice(0,6)}`, 'warn');
+        addLog(`[${strat.name}] 🔴 PEER OUT: ${peerId.slice(0,6)}`, 'warn');
         for (const [uid, data] of others.value.entries()) {
           if (data.peerIds.get(strat.name) === peerId) {
             data.peerIds.delete(strat.name);
@@ -111,7 +104,7 @@ const initP2P = () => {
       if (room.getRelaySockets) {
         const sockets = room.getRelaySockets();
         const connected = Object.values(sockets).filter(s => s.readyState === 1).length;
-        if (connected === 0) addLog(`[${name}] ⚠️ 0 Relay connected`, 'warn');
+        if (connected === 0) addLog(`[${name}] ⚠️ Connection Lost`, 'warn');
       }
     });
   }, 10000);
@@ -157,7 +150,7 @@ const updateLocation = (isManualClick = false) => {
   if (!navigator.geolocation) return addLog('GPS: Not Supported', 'error');
   if (!myName.value.trim()) return;
 
-  addLog('GPS: Requesting...', 'info');
+  addLog('GPS: Fetching...', 'info');
   isLocating.value = true;
   navigator.geolocation.getCurrentPosition(
     (pos) => {
@@ -167,11 +160,17 @@ const updateLocation = (isManualClick = false) => {
       lastSyncAt.value = Date.now();
 
       const payload = { uid: myId.value, name: myName.value, lat, lng };
-      addLog(`GPS: OK (${lat.toFixed(2)},${lng.toFixed(2)})`, 'success');
+      addLog(`GPS: OK (${lat.toFixed(4)},${lng.toFixed(4)})`, 'success');
 
+      let sentStrategies = [];
       locActions.value.forEach((action, name) => {
         action.send(payload);
+        sentStrategies.push(name);
       });
+      
+      if (sentStrategies.length > 0) {
+        addLog(`📤 BROADCAST via: ${sentStrategies.join(', ')}`, 'info');
+      }
 
       if (isManualClick) showToast('📍 位置已更新！');
       updateMapMarkers();
@@ -179,7 +178,7 @@ const updateLocation = (isManualClick = false) => {
     },
     (err) => {
       isLocating.value = false;
-      addLog(`GPS: FAIL (${err.code}) ${err.message}`, 'error');
+      addLog(`GPS: FAIL - ${err.message}`, 'error');
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
@@ -260,7 +259,8 @@ watch(myName, (newName) => {
   if (newName) {
     localStorage.setItem('locator_name', newName.trim());
     if (markers.value['me']) markers.value['me'].setIcon(createMarkerIcon(newName, true));
-    locActions.value.forEach(action => action.send({ uid: myId.value, name: newName.trim(), ...myLocation.value }));
+    const payload = { uid: myId.value, name: newName.trim(), ...myLocation.value };
+    locActions.value.forEach(action => action.send(payload));
   }
 });
 
@@ -320,7 +320,7 @@ onUnmounted(() => {
           <h2 class="text-sm font-semibold text-gray-700">📍 位置名單</h2>
         </div>
         <div class="divide-y divide-gray-50">
-          <div class="p-4 flex items-center gap-3">
+          <div class="p-4 flex items-center gap-3 bg-blue-50/30">
             <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">{{ getInitials(myName) }}</div>
             <div class="min-w-0">
               <div class="font-medium text-gray-900 truncate">{{ myName }} <span class="text-[10px] bg-blue-100 text-blue-600 px-1 rounded">YOU</span></div>
