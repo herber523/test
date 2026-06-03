@@ -5,9 +5,9 @@ import { joinRoom as joinNostr } from '@trystero-p2p/nostr';
 import { joinRoom as joinMqtt } from '@trystero-p2p/mqtt';
 import { joinRoom as joinTorrent } from '@trystero-p2p/torrent';
 
-// --- 0. On-Screen Debugger ---
+// --- 0. On-Screen Debugger (Improved for Mobile) ---
 const logs = ref([]);
-const isLogOpen = ref(false);
+const isLogVisible = ref(false);
 const addLog = (msg, type = 'info') => {
   const time = new Date().toLocaleTimeString();
   logs.value.unshift({ time, msg, type });
@@ -77,7 +77,7 @@ const initP2P = () => {
         addLog(`[${strat.name}] 🟢 PEER IN: ${peerId.slice(0,6)}`, 'success');
         if (myLocation.value) {
           const payload = { uid: myId.value, name: myName.value, lat: myLocation.value.lat, lng: myLocation.value.lng };
-          addLog(`[${strat.name}] 📤 SEND Greeting to ${peerId.slice(0,6)}`, 'info');
+          addLog(`[${strat.name}] 📤 Greeting to ${peerId.slice(0,6)}`, 'info');
           locAction.send(payload, peerId);
         }
       };
@@ -134,7 +134,7 @@ const activeOthers = computed(() => {
   });
 });
 
-const shortId = (id) => id ? id.replace('u_', '').slice(0, 4) : '....';
+const getInitials = (name) => (name || '?').charAt(0).toUpperCase();
 const formatTime = (ts) => {
   if (!ts) return '未知';
   const sec = Math.floor((Date.now() - ts) / 1000);
@@ -162,15 +162,12 @@ const updateLocation = (isManualClick = false) => {
       const payload = { uid: myId.value, name: myName.value, lat, lng };
       addLog(`GPS: OK (${lat.toFixed(4)},${lng.toFixed(4)})`, 'success');
 
-      let sentStrategies = [];
+      let sentCount = 0;
       locActions.value.forEach((action, name) => {
         action.send(payload);
-        sentStrategies.push(name);
+        sentCount++;
       });
-      
-      if (sentStrategies.length > 0) {
-        addLog(`📤 BROADCAST via: ${sentStrategies.join(', ')}`, 'info');
-      }
+      if (sentCount > 0) addLog(`📤 BROADCAST (${sentCount} strats)`, 'info');
 
       if (isManualClick) showToast('📍 位置已更新！');
       updateMapMarkers();
@@ -208,8 +205,6 @@ const fixLeafletIcon = () => {
   });
 };
 
-const getInitials = (name) => (name || '?').charAt(0).toUpperCase();
-
 const createMarkerIcon = (name, isMe = false, isOnline = true) => {
   const colorClass = isMe ? 'bg-blue-600' : (isOnline ? 'bg-gray-800' : 'bg-gray-400 grayscale');
   return L.divIcon({
@@ -235,7 +230,7 @@ const updateMapMarkers = () => {
   activeOthers.value.forEach(([uid, data]) => {
     if (!markers.value[uid]) {
       markers.value[uid] = L.marker([data.lat, data.lng], { icon: createMarkerIcon(data.name, false, data.isOnline) })
-        .bindPopup(`<div class="font-sans text-sm font-medium px-1">${data.name} <small class="text-gray-400">(${shortId(uid)})</small></div>`)
+        .bindPopup(`<div class="font-sans text-sm font-medium px-1">${data.name}<br/><span class="text-[10px] text-gray-400">最後更新: ${formatTime(data.lastSeen)}</span></div>`)
         .addTo(map);
     } else {
       markers.value[uid].setLatLng([data.lat, data.lng]);
@@ -280,79 +275,109 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col md:flex-row p-4 md:p-6 lg:p-8 gap-6 max-w-7xl mx-auto w-full relative overflow-hidden">
+  <!-- Main App Layout (Ensured Scrollable) -->
+  <div class="h-screen w-full flex flex-col md:flex-row bg-gray-50 overflow-y-auto md:overflow-hidden relative">
     
-    <!-- Floating Debug Console -->
-    <div class="fixed top-0 left-0 right-0 z-[2000] bg-black/90 text-white font-mono text-[10px] transition-all duration-300" :style="{ height: isLogOpen ? '40%' : '24px' }">
-      <div class="flex justify-between items-center px-4 py-1 border-b border-white/10 cursor-pointer" @click="isLogOpen = !isLogOpen">
-        <span>🛠️ DEBUG LOGS ({{ logs.length }})</span>
-        <span>{{ isLogOpen ? '▼ 收合' : '▲ 展開' }}</span>
-      </div>
-      <div v-if="isLogOpen" class="overflow-y-auto h-[calc(100%-24px)] p-2 flex flex-col-reverse gap-1">
-        <div v-for="(log, i) in logs" :key="i" class="border-l-2 pl-2" :class="{
+    <!-- Floating Debug Toggle Button -->
+    <button @click="isLogVisible = !isLogVisible" class="fixed bottom-4 right-4 z-[3000] w-12 h-12 bg-black/80 text-white rounded-full shadow-2xl flex items-center justify-center text-xl border border-white/20 active:scale-90 transition-transform">
+      🛠️
+    </button>
+
+    <!-- Debug Modal Overlay -->
+    <div v-if="isLogVisible" class="fixed inset-0 z-[4000] bg-black/95 flex flex-col p-4 animate-fade-in">
+       <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+         <h3 class="text-white font-bold">P2P DEBUG LOGS</h3>
+         <button @click="isLogVisible = false" class="px-4 py-1 bg-white/10 text-white rounded-lg">關閉</button>
+       </div>
+       <div class="flex-grow overflow-y-auto font-mono text-[10px] space-y-1">
+         <div v-for="(log, i) in logs" :key="i" class="border-l-2 pl-2" :class="{
           'border-blue-500 text-blue-200': log.type === 'info',
           'border-green-500 text-green-200': log.type === 'success',
           'border-red-500 text-red-200': log.type === 'error',
           'border-yellow-500 text-yellow-200': log.type === 'warn',
-          'border-gray-500 text-gray-400': log.type === 'sys'
+          'border-gray-500 text-gray-400': log.type === 'sys',
+          'border-purple-500 text-purple-200': log.type === 'recv'
         }">
           <span class="opacity-50">[{{ log.time }}]</span> {{ log.msg }}
         </div>
-      </div>
+       </div>
     </div>
 
-    <div class="w-full md:w-[380px] lg:w-[420px] shrink-0 flex flex-col gap-5 md:overflow-y-auto pb-4 pt-8">
-      <div class="text-center md:text-left space-y-1 mb-2">
+    <!-- UI Panel -->
+    <div class="w-full md:w-[380px] lg:w-[420px] shrink-0 p-4 md:p-6 flex flex-col gap-5 md:overflow-y-auto">
+      <div class="text-center md:text-left space-y-1">
         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3 mx-auto md:mx-0 text-2xl font-bold">📍</div>
-        <h1 class="text-2xl font-bold tracking-tight">群組定點尋人 (P2P)</h1>
-        <p class="text-sm text-gray-500">多路徑同步 (倒數：{{ nextSyncIn }}s) · 0 Server</p>
+        <h1 class="text-2xl font-bold tracking-tight text-gray-900">群組定點尋人 (P2P)</h1>
+        <p class="text-sm text-gray-500">同步中 ({{ nextSyncIn }}s) · 0 Server</p>
       </div>
 
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-        <h2 class="text-sm font-semibold mb-2 text-gray-700">👤 我是誰</h2>
-        <input v-model="myName" type="text" maxlength="12" class="w-full px-4 py-2 rounded-xl border border-gray-200 outline-none">
+        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">👤 我的名稱</h2>
+        <input v-model="myName" type="text" maxlength="12" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-medium">
       </div>
 
-      <button @click="handleShare" :disabled="!myName" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-semibold shadow-sm">🔗 分享網址並複製</button>
+      <button @click="handleShare" :disabled="!myName" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-4 font-bold shadow-lg shadow-blue-100 active:scale-95 transition-transform flex items-center justify-center gap-2">
+        <span>🔗</span> 複製分享網址
+      </button>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[200px]">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-grow min-h-[300px]">
         <div class="p-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-          <h2 class="text-sm font-semibold text-gray-700">📍 位置名單</h2>
+          <h2 class="text-sm font-bold text-gray-700">📍 位置名單</h2>
+          <span v-if="isLocating" class="w-2 h-2 bg-blue-500 rounded-full animate-ping"></span>
         </div>
-        <div class="divide-y divide-gray-50">
-          <div class="p-4 flex items-center gap-3 bg-blue-50/30">
-            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">{{ getInitials(myName) }}</div>
+        <div class="divide-y divide-gray-50 max-h-[500px] overflow-y-auto">
+          <!-- ME -->
+          <div class="p-4 flex items-center gap-4 bg-blue-50/30">
+            <div class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">{{ getInitials(myName) }}</div>
             <div class="min-w-0">
-              <div class="font-medium text-gray-900 truncate">{{ myName }} <span class="text-[10px] bg-blue-100 text-blue-600 px-1 rounded">YOU</span></div>
-              <div class="text-[10px] text-gray-400 font-mono">ID: {{ myId }}</div>
+              <div class="font-bold text-gray-900 truncate">{{ myName || '未命名' }} <span class="ml-1 text-[10px] bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded-full">YOU</span></div>
+              <div class="text-[10px] text-gray-400 font-mono mt-0.5">ID: {{ myId }} · 最近: {{ formatTime(lastSyncAt) }}</div>
             </div>
           </div>
-          <div v-if="activeOthers.length === 0" class="p-6 text-center text-sm text-gray-400">📭 等待其他人加入...</div>
-          <div v-for="[uid, data] in activeOthers" :key="uid" class="p-4" :class="{'opacity-60': !data.isOnline}">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" :class="data.isOnline ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-400'">
+          <!-- OTHERS -->
+          <div v-if="others.size === 0" class="p-10 text-center text-sm text-gray-400">
+            <span class="block text-2xl mb-2">📭</span> 暫無其他夥伴加入...
+          </div>
+          <div v-for="[uid, data] in activeOthers" :key="uid" class="p-4 flex items-center gap-4 transition-opacity" :class="{'opacity-50 grayscale': !data.isOnline}">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-sm" :class="data.isOnline ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'">
                 {{ getInitials(data.name) }}
+            </div>
+            <div class="min-w-0 flex-grow">
+              <div class="font-bold text-gray-900 truncate flex items-center gap-2">
+                {{ data.name }}
+                <span v-if="!data.isOnline" class="text-[9px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">離線</span>
               </div>
-              <div class="min-w-0 flex-grow">
-                <div class="font-medium text-gray-900 truncate flex items-center gap-2">
-                  {{ data.name }}
-                  <span v-if="!data.isOnline" class="text-[9px] bg-gray-200 text-gray-500 px-1 rounded font-normal">離線</span>
-                </div>
-                <div class="text-[10px] text-gray-400 font-mono">ID: {{ uid }} · 最近: {{ formatTime(data.lastSeen) }}</div>
+              <div class="text-[10px] text-gray-400 font-mono">ID: {{ uid }} · {{ formatTime(data.lastSeen) }}</div>
+              <div class="flex gap-1 mt-1.5" v-if="data.isOnline">
+                 <span v-for="strat in data.peerIds.keys()" :key="strat" class="px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-[8px] text-gray-500 font-bold uppercase">{{ strat }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="w-full flex-grow min-h-[50vh] md:h-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm relative">
+
+    <!-- Map Container -->
+    <div class="w-full flex-grow min-h-[50vh] md:h-full bg-white rounded-t-3xl md:rounded-l-3xl md:rounded-tr-none border-t md:border-t-0 md:border-l border-gray-200 overflow-hidden shadow-2xl relative z-0">
        <div id="map" class="w-full h-full"></div>
     </div>
+
+    <!-- Toast Notification -->
+    <transition name="toast">
+      <div v-if="toastVisible" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full z-[5000] text-sm shadow-2xl">{{ toastMessage }}</div>
+    </transition>
   </div>
 </template>
 
 <style>
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
 .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 20px); }
-.leaflet-container { background-color: #f8fafc; }
+.leaflet-container { background-color: #f8fafc; cursor: crosshair !important; }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 </style>
